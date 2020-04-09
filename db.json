@@ -117,19 +117,32 @@
       "email": "sam@acme.com",
       "log": [
         {
-          "food": "apple",
-          "servingSize": "2",
-          "calories": 176
+          "1586456559817": {
+            "food": "apple",
+            "servingSize": "3",
+            "calories": 264
+          }
         },
         {
-          "food": "apple",
-          "servingSize": "2",
-          "calories": 176
+          "1586456580621": {
+            "food": "oreos",
+            "servingSize": "1.25",
+            "calories": 230
+          }
         },
         {
-          "food": "apple",
-          "servingSize": "4",
-          "calories": 352
+          "1586456588177": {
+            "food": "oreos",
+            "servingSize": "5",
+            "calories": 1150
+          }
+        },
+        {
+          "1586456597882": {
+            "food": "apple",
+            "servingSize": "3.5",
+            "calories": 264
+          }
         }
       ]
     }

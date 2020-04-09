@@ -72,11 +72,13 @@ readline.on("line", async (line) => {
             log: [
               ...userLog,
               {
-                food: food.name,
-                servingSize,
-                calories: Number.parseFloat(
-                  calories * parseInt(servingSize, 10)
-                ),
+                [Date.now()]: {
+                  food: food.name,
+                  servingSize,
+                  calories: Number.parseFloat(
+                    calories * parseInt(servingSize, 10)
+                  ),
+                },
               },
             ],
           };
@@ -110,7 +112,48 @@ readline.on("line", async (line) => {
         });
       }
       break;
+    case "today's log":
+      {
+        readline.question("Email: ", async (emailAddress) => {
+          const { data } = await axios.get(
+            `http://localhost:3001/users?email=${emailAddress}`
+          );
+          const foodLog = data[0].log || [];
+          let totalCalories = 0;
+
+          function* getFoodLog() {
+            yield* foodLog;
+          }
+
+          for (const item of getFoodLog()) {
+            const timestamp = Object.keys(item)[0];
+
+            if (isToday(new Date(Number(timestamp)))) {
+              console.log(
+                `${item[timestamp].food}, ${item[timestamp].servingSize} serving(s)`
+              );
+              totalCalories += item[timestamp].calories;
+            }
+          }
+
+          console.log("-------------");
+          console.log(`Total Calories: ${totalCalories}`);
+          console.log("-------------");
+
+          readline.prompt();
+        });
+      }
+      break;
     default:
       break;
   }
 });
+
+function isToday(timestamp) {
+  const today = new Date();
+  return (
+    today.getDate() === today.getDate() &&
+    today.getMonth() === today.getMonth() &&
+    today.getFullYear() === today.getFullYear()
+  );
+}
