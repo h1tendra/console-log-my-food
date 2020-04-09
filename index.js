@@ -10,39 +10,24 @@ readline.on("line", async (line) => {
   switch (line.trim()) {
     case "list vegan foods":
       {
-        axios.get(`http://localhost:3001/food`).then(({ data }) => {
+        const { data } = await axios.get(`http://localhost:3001/food`);
+
+        function* listVeganFoods() {
+          let idx = 0;
           const veganOnly = data.filter((item) => {
             return item.dietary_preferences.includes("vegan");
           });
-
-          const veganIterable = {
-            [Symbol.iterator]() {
-              let idx = 0;
-
-              return {
-                [Symbol.iterator]() {
-                  return this;
-                },
-                next() {
-                  const current = veganOnly[idx];
-                  idx++;
-
-                  if (current) {
-                    return { value: current, done: false };
-                  } else {
-                    return { value: current, done: true };
-                  }
-                },
-              };
-            },
-          };
-
-          for (const item of veganIterable) {
-            console.log(item.name);
+          while (veganOnly[idx]) {
+            yield veganOnly[idx];
+            idx++;
           }
+        }
 
-          readline.prompt();
-        });
+        for (const item of listVeganFoods()) {
+          console.log(item.name);
+        }
+
+        readline.prompt();
       }
       break;
     case "log":
@@ -51,44 +36,20 @@ readline.on("line", async (line) => {
         const dataIt = data[Symbol.iterator]();
         let actionIt;
 
-        const actionCreator = {
-          [Symbol.iterator]() {
-            let positions = [...this.actions];
+        function* actionGenerator() {
+          const food = yield;
+          const servingSize = yield askForServingSize();
+          yield displayCalories(servingSize, food);
+        }
 
-            return {
-              [Symbol.iterator]() {
-                return this;
-              },
-              next(...args) {
-                if (positions.length > 0) {
-                  const position = positions.shift();
-                  const result = position(...args);
-                  return { value: result, done: false };
-                } else {
-                  return { done: true };
-                }
-              },
-              return() {
-                positions = [];
-                return { done: true };
-              },
-              throw(error) {
-                console.log(error);
-                return { value: undefined, done: true };
-              },
-            };
-          },
-          actions: [askForServingSize, displayCalories],
-        };
-
-        function askForServingSize(food) {
+        function askForServingSize() {
           readline.question(
             `How many servings did you eat? (as a decimal 1, 0.5, 1.25, ect.. )`,
             (servingSize) => {
               if (servingSize === "nevermind" || servingSize === "n") {
                 actionIt.return();
               } else {
-                actionIt.next(servingSize, food);
+                actionIt.next(servingSize);
               }
             }
           );
@@ -137,7 +98,8 @@ readline.on("line", async (line) => {
 
             if (item === food) {
               console.log(`${food} has ${position.value.calories} calories`);
-              actionIt = actionCreator[Symbol.iterator]();
+              actionIt = actionGenerator();
+              actionIt.next();
               actionIt.next(position.value);
             }
 

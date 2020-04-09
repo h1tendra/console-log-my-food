@@ -125,6 +125,11 @@
           "food": "apple",
           "servingSize": "2",
           "calories": 176
+        },
+        {
+          "food": "apple",
+          "servingSize": "4",
+          "calories": 352
         }
       ]
     }
