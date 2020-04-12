@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 const axios = require("axios");
 const readline = require("readline").createInterface({
   input: process.stdin,
@@ -5,31 +6,96 @@ const readline = require("readline").createInterface({
   prompt: "enter command >",
 });
 
+let actionIt;
+
+function* listVeganFoods(data) {
+  try {
+    let idx = 0;
+    const veganOnly = data.filter((item) => {
+      return item.dietary_preferences.includes("vegan");
+    });
+    while (veganOnly[idx]) {
+      yield veganOnly[idx];
+      idx++;
+    }
+  } catch (error) {
+    console.log("Something went wrong while listing vegan items", {
+      error,
+    });
+  }
+}
+
+function* actionGenerator() {
+  try {
+    const food = yield;
+    const servingSize = yield askForServingSize();
+    yield displayCalories(servingSize, food);
+  } catch (error) {
+    console.log({ error });
+  }
+}
+
+function askForServingSize() {
+  readline.question(
+    `How many servings did you eat? (as a decimal 1, 0.5, 1.25, ect.. )`,
+    (servingSize) => {
+      if (servingSize === "nevermind" || servingSize === "n") {
+        return actionIt.return();
+      }
+
+      servingSize = +servingSize;
+
+      if (Number.isNaN(servingSize)) {
+        actionIt.throw("Please, numbers only");
+      } else {
+        actionIt.next(servingSize);
+      }
+    }
+  );
+}
+
+async function displayCalories(servingSize = 1, food) {
+  const { calories } = food;
+  console.log(
+    `${
+      food.name
+    } with a serving size of ${servingSize} has a ${Number.parseFloat(
+      calories * parseInt(servingSize, 10)
+    )}`
+  );
+
+  const { data } = await axios.get(`http://localhost:3001/users/1`);
+  const userLog = data.log || [];
+  const putBody = {
+    ...data,
+    log: [
+      ...userLog,
+      {
+        [Date.now()]: {
+          food: food.name,
+          servingSize,
+          calories: Number.parseFloat(calories * parseInt(servingSize, 10)),
+        },
+      },
+    ],
+  };
+  await axios.put(`http://localhost:3001/users/1`, putBody, {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
+
+  actionIt.next();
+  readline.prompt();
+}
+
 readline.prompt();
 readline.on("line", async (line) => {
   switch (line.trim()) {
     case "list vegan foods":
       {
         const { data } = await axios.get(`http://localhost:3001/food`);
-
-        function* listVeganFoods() {
-          try {
-            let idx = 0;
-            const veganOnly = data.filter((item) => {
-              return item.dietary_preferences.includes("vegan");
-            });
-            while (veganOnly[idx]) {
-              yield veganOnly[idx];
-              idx++;
-            }
-          } catch (error) {
-            console.log("Something went wrong while listing vegan items", {
-              error,
-            });
-          }
-        }
-
-        for (const item of listVeganFoods()) {
+        for (const item of listVeganFoods(data)) {
           console.log(item.name);
         }
 
@@ -40,73 +106,6 @@ readline.on("line", async (line) => {
       {
         const { data } = await axios.get("http://localhost:3001/food");
         const dataIt = data[Symbol.iterator]();
-        let actionIt;
-
-        function* actionGenerator() {
-          try {
-            const food = yield;
-            const servingSize = yield askForServingSize();
-            yield displayCalories(servingSize, food);
-          } catch (error) {
-            console.log({ error });
-          }
-        }
-
-        function askForServingSize() {
-          readline.question(
-            `How many servings did you eat? (as a decimal 1, 0.5, 1.25, ect.. )`,
-            (servingSize) => {
-              if (servingSize === "nevermind" || servingSize === "n") {
-                return actionIt.return();
-              }
-
-              servingSize = +servingSize;
-
-              if (Number.isNaN(servingSize)) {
-                actionIt.throw("Please, numbers only");
-              } else {
-                actionIt.next(servingSize);
-              }
-            }
-          );
-        }
-
-        async function displayCalories(servingSize = 1, food) {
-          const { calories } = food;
-          console.log(
-            `${
-              food.name
-            } with a serving size of ${servingSize} has a ${Number.parseFloat(
-              calories * parseInt(servingSize, 10)
-            )}`
-          );
-
-          const { data } = await axios.get(`http://localhost:3001/users/1`);
-          const userLog = data.log || [];
-          const putBody = {
-            ...data,
-            log: [
-              ...userLog,
-              {
-                [Date.now()]: {
-                  food: food.name,
-                  servingSize,
-                  calories: Number.parseFloat(
-                    calories * parseInt(servingSize, 10)
-                  ),
-                },
-              },
-            ],
-          };
-          await axios.put(`http://localhost:3001/users/1`, putBody, {
-            headers: {
-              "Content-Type": "application/json",
-            },
-          });
-
-          actionIt.next();
-          readline.prompt();
-        }
 
         readline.question("What would you like to log today?", async (item) => {
           let position = dataIt.next();
@@ -179,8 +178,8 @@ readline.on("line", async (line) => {
 function isToday(timestamp) {
   const today = new Date();
   return (
-    today.getDate() === today.getDate() &&
-    today.getMonth() === today.getMonth() &&
-    today.getFullYear() === today.getFullYear()
+    today.getDate() === timestamp.getDate() &&
+    today.getMonth() === timestamp.getMonth() &&
+    today.getFullYear() === timestamp.getFullYear()
   );
 }
